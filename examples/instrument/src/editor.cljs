@@ -16,7 +16,7 @@
         (om/set-state! owner :value value)))))
 
 (defn pr-map-cursor [cursor]
-  (pr-str
+  (pr-str 
     (into cljs.core.PersistentHashMap.EMPTY
       (om/value cursor))))
 
@@ -24,7 +24,7 @@
   (reify
     om/IInitState
     (init-state [_]
-      {:value (pr-map-cursor cursor)
+      {:value (pr-map-cursor cursor) 
        :editing false})
     om/IRenderState
     (render-state [_ {:keys [editing value]}]
