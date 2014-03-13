@@ -11,44 +11,56 @@
 ;; Declarations
 
 (def app-state
-  (atom {:ui [{:checked false :label "Foo" :count 0}
-              {:checked false :label "Bar" :count 0}
-              {:checked false :label "Baz" :count 0}]}))
+  (atom {:children [{:open? false :label "Foo"
+                     :children
+                     [{:open? false :label "Foo"}
+                      {:open? false :label "Bar"
+                       :children
+                       [{:open? false :label "Foo"}
+                        {:open? false :label "Bar"}
+                        {:open? false :label "Baz"}]}
+                      {:open? false :label "Baz"}]}
+                    {:open? false :label "Bar"}
+                    {:open? false :label "Baz"}]}))
 
 ;; =============================================================================
 ;; Application
 
-(defn radio-button [data owner]
+(declare branch)
+
+(defn leaf [{:keys [children open? label] :as data} owner]
   (reify
     om/IRender
     (render [_]
       (html
        [:div.radio
-        [:label
-         [:input {:type "checkbox"
-                  :checked (:checked data)
-                  :onChange (fn [e]
-                              (om/transact! data :checked not)
-                              (om/transact! data :count inc))}]
-         (:label data)]]))))
+        (if children
+          [:label
+           [:input {:type "checkbox"
+                    :checked open?
+                    :onChange #(om/transact! data :open? not)}]
+           label]
+          [:div {:style {:margin-left "27px"}} label])
+        (when (and children open?)
+          (om/build branch data))]))))
 
-(defn all-buttons [data owner]
+(defn branch [data owner]
   (reify
     om/IRender
     (render [_]
       (apply dom/div nil
-        (om/build-all radio-button (:ui data))))))
+        (om/build-all leaf (:children data))))))
 
 ;; =============================================================================
 ;; Init
 
-(om/root all-buttons app-state
+(om/root branch app-state
   {:target (.getElementById js/document "ex0")})
 
-(om/root all-buttons app-state
+(om/root branch app-state
   {:target (.getElementById js/document "ex1")
    :instrument
    (fn [f cursor m]
-     (if (= f radio-button)
+     (if (= f leaf)
        (om/build* editor/editor (om/graft [f cursor m] cursor))
        ::om/pass))})
