@@ -14,14 +14,14 @@
 
 (def app-state
   (atom {:children
-         [{:open? false :label "Foo" :id 1
+         [{:open? true :label "Foo" :id 1
            :children
            [{:open? false :label "Foo" :id 11}
-            {:open? false :label "Bar" :id 12
+            {:open? true :label "Bar" :id 12
              :children
              [{:open? false :label "Foo" :id 21}
               {:open? false :label "Bar" :id 22}
-              {:open? false :label "Baz" :id 23
+              {:open? true :label "Baz" :id 23
                :children
                [{:open? false :label "Foo" :id 211}
                 {:open? false :label "Bar" :id 212}
@@ -100,10 +100,8 @@
 ;; =============================================================================
 ;; Init
 
-#_(om/root tree app-state
-         {:target (.getElementById js/document "ex0")
-          ;:tx-listen (fn [{:keys [new-state] :as one} two] (prn "###" new-state))
-          })
+(om/root tree app-state
+         {:target (.getElementById js/document "ex0")})
 
 (om/root tree app-state
            {:target (.getElementById js/document "ex1")
