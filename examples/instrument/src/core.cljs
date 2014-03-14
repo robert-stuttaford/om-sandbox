@@ -19,13 +19,21 @@
            [{:open? false :label "Foo" :id 11}
             {:open? true :label "Bar" :id 12
              :children
-             [{:open? false :label "Foo" :id 21}
-              {:open? false :label "Bar" :id 22}
+             [{:open? false :label "Foo" :id 21
+               :children
+               [{:open? false :label "Foo" :id 2110}
+                {:open? false :label "Bar" :id 2120}
+                {:open? false :label "Baz" :id 2130}]}
+              {:open? false :label "Bar" :id 22
+               :children
+               [{:open? false :label "Foo" :id 2111}
+                {:open? false :label "Bar" :id 2121}
+                {:open? false :label "Baz" :id 2131}]}
               {:open? true :label "Baz" :id 23
                :children
-               [{:open? false :label "Foo" :id 211}
-                {:open? false :label "Bar" :id 212}
-                {:open? false :label "Baz" :id 213}]}]}
+               [{:open? false :label "Foo" :id 2112}
+                {:open? false :label "Bar" :id 2122}
+                {:open? false :label "Baz" :id 2132}]}]}
             {:open? false :label "Baz" :id 13}]}
           {:open? false :label "Bar" :id 2}
           {:open? false :label "Baz" :id 3}]}))
@@ -34,6 +42,18 @@
 ;; Application
 
 (declare branch)
+
+(defn deselect-children [latest-selected children]
+  (->> children
+       (map (fn [child]
+              (if (and (-> child :id (not= latest-selected)) (:selected? child))
+                (assoc child :selected? false)
+                child)))
+       (map (fn [{:keys [children] :as child}]
+              (if children
+                (assoc child :children (deselect-children latest-selected children))
+                child)))
+       vec))
 
 (defn close-children [children]
   (->> children
@@ -47,33 +67,32 @@
                 child)))
        vec))
 
-(defn leaf [{:keys [children open? label id] :as data} owner]
+(defn leaf [{:keys [children open? selected? label id] :as data} owner]
   (reify
-    om/IDisplayName
-    (display-name [_]
-      "Leaf")
+    om/IDisplayName (display-name [_] "Leaf")
     om/IRenderState
     (render-state [_ {:keys [control] :as state}]
+      (prn "id" id "selected" selected?)
       (html
        [:div.radio {:key id}
         (if children
           [:label (when open? {:style {:text-decoration "underline"}})
            [:input {:type "checkbox"
                     :checked open?
-                    :onChange #(do ;(put! control (om/path data))
-                                   (when open?
+                    :onChange #(do (when open?
                                      (om/transact! data :children close-children))
                                    (om/transact! data :open? not))}]
            id ": " label]
-          [:div {:style {:margin-left "27px"}} id ": " label])
+          [:div.leaf {:onClick #(do (put! control [:select id])
+                                    (om/transact! data :selected? (constantly true)))}
+           [:div (when selected? {:style {:background "#179CD1"}})
+            id ": " label]])
         (when (and children open?)
           (om/build branch data {:init-state state}))]))))
 
 (defn branch [data owner]
   (reify
-    om/IDisplayName
-    (display-name [_]
-      "Branch")
+    om/IDisplayName (display-name [_] "Branch")
     om/IRenderState
     (render-state [_ state]
       (apply dom/div nil
@@ -81,15 +100,14 @@
 
 (defn tree [data owner]
   (reify
-    om/IDisplayName
-    (display-name [_]
-      "Tree")
+    om/IDisplayName (display-name [_] "Tree")
     om/IWillMount
     (will-mount [_]
       (let [control (om/get-state owner :control)]
         (go (while true
               (when-let [value (<! control)]
-                (prn (get-in @data value)))))))
+                (prn ">" value)
+                (om/transact! data :children (partial deselect-children (last value))))))))
     om/IInitState
     (init-state [_]
       {:control (chan)})
