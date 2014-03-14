@@ -43,16 +43,20 @@
 
 (declare branch)
 
+(defn process-children [f children]
+  (map (fn [{:keys [children] :as child}]
+         (if children
+           (assoc child :children (f children))
+           child))
+       children))
+
 (defn deselect-children [latest-selected children]
   (->> children
        (map (fn [child]
               (if (and (-> child :id (not= latest-selected)) (:selected? child))
                 (assoc child :selected? false)
                 child)))
-       (map (fn [{:keys [children] :as child}]
-              (if children
-                (assoc child :children (deselect-children latest-selected children))
-                child)))
+       (process-children (partial deselect-children latest-selected))
        vec))
 
 (defn close-children [children]
@@ -61,10 +65,7 @@
               (if (:open? child)
                 (assoc child :open? false)
                 child)))
-       (map (fn [{:keys [children] :as child}]
-              (if children
-                (assoc child :children (close-children children))
-                child)))
+       (process-children close-children)
        vec))
 
 (defn leaf [{:keys [children open? selected? label id] :as data} owner]
@@ -72,7 +73,6 @@
     om/IDisplayName (display-name [_] "Leaf")
     om/IRenderState
     (render-state [_ {:keys [control] :as state}]
-      (prn "id" id "selected" selected?)
       (html
        [:div.radio {:key id}
         (if children
@@ -105,9 +105,11 @@
     (will-mount [_]
       (let [control (om/get-state owner :control)]
         (go (while true
-              (when-let [value (<! control)]
-                (prn ">" value)
-                (om/transact! data :children (partial deselect-children (last value))))))))
+              (when-let [[op args] (<! control)]
+                (prn op ": " args)
+                (condp = op
+                  :select
+                  (om/transact! data :children (partial deselect-children args))))))))
     om/IInitState
     (init-state [_]
       {:control (chan)})
